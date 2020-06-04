@@ -1,4 +1,6 @@
-# COVID-19-Real-Time-Report
+# COVID-19-Real-Time-Tracker
+
+Link: https://peterljw.shinyapps.io/covid_dashboard/
 
 ### Background
 
