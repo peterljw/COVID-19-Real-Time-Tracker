@@ -1,6 +1,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinythemes)
+library(shinycssloaders)
 library(plotly)
 library(DT)
 library(shinyWidgets)
@@ -13,7 +14,7 @@ ui <- dashboardPage(
   skin = "black",
   
   ####### Dashboard Title #######
-  dashboardHeader(title = "COVID-19 Report"),
+  dashboardHeader(title = "COVID-19 Tracker"),
   
   ####### Dashboard Sidebar #######
   dashboardSidebar(    
@@ -24,18 +25,18 @@ ui <- dashboardPage(
                menuSubItem("World", tabName = "overview-world")
                ),
       # trend
-      menuItem("Trend Analysis", tabName = "trend", icon = icon("chart-line")),
-      # simulation
-      menuItem("Epidemic Simulation", tabName = "simulation", icon = icon("stopwatch"),
-               menuSubItem("U.S. (in progress)", tabName = "simulation-us")),
+      menuItem("Trend By Country", tabName = "trend", icon = icon("chart-line")),
+      # symptoms
+      menuItem("Common Symptoms", tabName = "symptoms", icon = icon("notes-medical")),
       # demographics
-      menuItem("Patient Demographics", tabName = "demographics", icon = icon("user"),
-               menuSubItem("(in progress)", tabName = "simulation-us"))
-      
+      menuItem("Patient Demographics", tabName = "demographics", icon = icon("user")),
+      # about
+      menuItem("About", tabName = "about", icon = icon("info"))
       )
   ),
   ####### Dashboard Body #######
   dashboardBody(
+    
     ####### overview-us #######
     tabItems(
       tabItem(tabName = "overview-us",
@@ -52,18 +53,18 @@ ui <- dashboardPage(
                                                    "Deaths" = "Deaths"),
                                        selected = "Confirmed"),
                            materialSwitch(inputId = "us_log", label = "Log Scale", value = TRUE, status = "warning"),
-                           materialSwitch(inputId = "pop_log", label = "Cases/Million (in progress)", value = FALSE, status = "warning")
+                           materialSwitch(inputId = "us_pop_log", label = "Cases/Million", value = FALSE, status = "warning")
                            )
                 ),
                 column(9,
                        box(width = NULL, solidHeader = TRUE,
                            tabsetPanel(
                              tabPanel("Map",
-                                      plotlyOutput("us_map")),
+                                      plotlyOutput("us_map") %>% withSpinner(type = 1, color = "darkorange")),
                              tabPanel("Line Plot",
-                                      plotlyOutput("us_line_plot")),
+                                      plotlyOutput("us_line_plot") %>% withSpinner(type = 1, color = "darkorange")),
                              tabPanel("Table",
-                                      DT::dataTableOutput("us_table"))
+                                      DT::dataTableOutput("us_table") %>% withSpinner(type = 1, color = "darkorange"))
                            )
                        )
                 )
@@ -85,47 +86,78 @@ ui <- dashboardPage(
                                                    "Deaths" = "Deaths"),
                                        selected = "Confirmed"),
                            materialSwitch(inputId = "world_log", label = "Log Scale", value = TRUE, status = "warning"),
-                           materialSwitch(inputId = "pop_log", label = "Cases/Million (in progress)", value = FALSE, status = "warning")
+                           materialSwitch(inputId = "world_pop_log", label = "Cases/Million", value = FALSE, status = "warning")
                        )
                 ),
                 column(9,
                        box(width = NULL, solidHeader = TRUE,
                            tabsetPanel(
                              tabPanel("Map",
-                                      plotlyOutput("world_map")),
+                                      plotlyOutput("world_map") %>% withSpinner(type = 1, color = "darkorange")),
                              tabPanel("Line Plot",
-                                      plotlyOutput("world_line_plot")),
+                                      plotlyOutput("world_line_plot") %>% withSpinner(type = 1, color = "darkorange")),
                              tabPanel("Table",
-                                      DT::dataTableOutput("world_table"))
+                                      DT::dataTableOutput("world_table") %>% withSpinner(type = 1, color = "darkorange"))
                              )
                            )
                        )
                 )
               ),
       ####### trend #######
+      # current trend
       tabItem(tabName = "trend",
               fluidRow(
-                column(2,
+                column(3,
                        box(width = NULL,
-                           selectizeInput("trend_country","Country Selection", choices=NULL, selected="US"),
-                           numericInput("moving_n", "Enter Moving Average Days", 10, min = 1, max = 50)
+                           selectInput("trend_metric_selection", "Metric Selection", 
+                                       choices = c("Confirmed" = "confirmed",
+                                                   "Deaths" = "deaths",
+                                                   "Recovered" = "recovered"),
+                                       selected="Confirmed"),
+                           selectizeInput("trend_country","Country Selection", choices=NULL),
+                           numericInput("moving_n", "Enter Moving Average Days", 14, min = 1, max = 50)
                        )
                 ),
-                column(10,
+                column(9,
                        box(width = NULL, solidHeader = TRUE,
-                           tabsetPanel(
-                             tabPanel("Current Trend",
-                                      plotOutput("trend_plot")),
-                             tabPanel("10-Days Forecast (in progress)",
-                                      plotOutput("prediction_plot"))
-                             )
-                           )
+                           plotOutput("trend_plot") %>% withSpinner(type = 1, color = "darkorange")
                        )
                 )
+              )
               ),
-
+    
+      ####### symptoms #######
+      tabItem(tabName = "symptoms",
+              plotlyOutput("symptoms_plot") %>% withSpinner(type = 1, color = "darkorange")
+              ),
       ####### demographics #######
-      tabItem(tabName = "demographics-us")
+      tabItem(tabName = "demographics",
+              fluidRow(
+                column(3,
+                       box(width = NULL,
+                           materialSwitch(inputId = "outcome_switch", label = "Group By Outcome", value = TRUE, status = "warning")
+                       )
+                ),
+                column(9,
+                       box(width = NULL, solidHeader = TRUE,
+                           tabsetPanel(
+                             tabPanel("Age",
+                                      plotlyOutput("age_boxplot") %>% withSpinner(type = 1, color = "darkorange"),
+                                      plotlyOutput("age_densityplot") %>% withSpinner(type = 1, color = "darkorange")
+                                      ),
+                             tabPanel("Gender",
+                                      plotlyOutput("gender_plot") %>% withSpinner(type = 1, color = "darkorange")
+                                      )
+                           )
+                       )
+                  )
+                )
+              ),
+      
+      ####### about #######
+      tabItem(tabName = "about",
+              box(width = NULL, solidHeader = TRUE, includeMarkdown("about.Rmd"))
+              )
       )
     )
     
