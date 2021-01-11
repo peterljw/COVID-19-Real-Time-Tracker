@@ -25,7 +25,10 @@ ui <- dashboardPage(
                menuSubItem("World", tabName = "overview-world")
                ),
       # trend
-      menuItem("Trend By Country", tabName = "trend", icon = icon("chart-line")),
+      menuItem("Trend", tabName = "trend", icon = icon("chart-line"),
+               menuSubItem("U.S.", tabName = "trend-us"),
+               menuSubItem("World", tabName = "trend-world")
+               ),
       # symptoms
       menuItem("Common Symptoms", tabName = "symptoms", icon = icon("notes-medical")),
       # demographics
@@ -41,9 +44,10 @@ ui <- dashboardPage(
     tabItems(
       tabItem(tabName = "overview-us",
               fluidRow(
-                valueBoxOutput("us_confirmed"),
-                valueBoxOutput("us_death"),
-                valueBoxOutput("us_recovered")
+                valueBoxOutput("us_confirmed", width = 3),
+                valueBoxOutput("us_active", width = 3),
+                valueBoxOutput("us_recovered", width = 3),
+                valueBoxOutput("us_death", width = 3)
               ),
               fluidRow(
                 column(3,
@@ -74,9 +78,10 @@ ui <- dashboardPage(
       ####### overview-world #######
       tabItem(tabName = "overview-world",
               fluidRow(
-                valueBoxOutput("world_confirmed"),
-                valueBoxOutput("world_death"),
-                valueBoxOutput("world_recovered")
+                valueBoxOutput("world_confirmed", width = 3),
+                valueBoxOutput("world_active", width = 3),
+                valueBoxOutput("world_recovered", width = 3),
+                valueBoxOutput("world_death", width = 3)
                 ),
               fluidRow(
                 column(3,
@@ -104,23 +109,46 @@ ui <- dashboardPage(
                 )
               ),
       ####### trend #######
-      # current trend
-      tabItem(tabName = "trend",
+      tabItem(tabName = "trend-us",
               fluidRow(
                 column(3,
                        box(width = NULL,
-                           selectInput("trend_metric_selection", "Metric Selection", 
+                           selectInput("trend_metric_selection_us", "Metric Selection", 
+                                       choices = c("Confirmed" = "confirmed",
+                                                   "Deaths" = "deaths"),
+                                       selected="Confirmed"),
+                           selectizeInput("trend_state","State Selection", choices=NULL),
+                           radioButtons("trend_us", label = "Scope",
+                                        choices = list("Short-term Trend" = "Short-term Trend", "Long-term Trend" = "Long-term Trend"), 
+                                        selected = "Short-term Trend")
+                       )
+                ),
+                column(9,
+                       box(width = NULL, solidHeader = TRUE,
+                           plotlyOutput("trend_plot_us") %>% withSpinner(type = 1, color = "darkorange")
+                       )
+                )
+              )
+      ),
+      
+      tabItem(tabName = "trend-world",
+              fluidRow(
+                column(3,
+                       box(width = NULL,
+                           selectInput("trend_metric_selection_world", "Metric Selection", 
                                        choices = c("Confirmed" = "confirmed",
                                                    "Deaths" = "deaths",
                                                    "Recovered" = "recovered"),
                                        selected="Confirmed"),
                            selectizeInput("trend_country","Country Selection", choices=NULL),
-                           numericInput("moving_n", "Enter Moving Average Days", 14, min = 1, max = 50)
+                           radioButtons("trend_world", label = "Scope",
+                                        choices = list("Short-term Trend" = "Short-term Trend", "Long-term Trend" = "Long-term Trend"), 
+                                        selected = "Short-term Trend")
                        )
                 ),
                 column(9,
                        box(width = NULL, solidHeader = TRUE,
-                           plotOutput("trend_plot") %>% withSpinner(type = 1, color = "darkorange")
+                           plotlyOutput("trend_plot_world") %>% withSpinner(type = 1, color = "darkorange")
                        )
                 )
               )
