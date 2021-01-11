@@ -358,8 +358,8 @@ ts.us.all = ts.us.all %>% mutate(active = confirmed - death - recovered)
 ###### Upload to S3 ######
 
 s3BucketName <- "peter-covid-dashboard-data"
-Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAWECDTQ4VWNXVGNXV",
-           "AWS_SECRET_ACCESS_KEY" = "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",
+Sys.setenv("AWS_ACCESS_KEY_ID" = "",
+           "AWS_SECRET_ACCESS_KEY" = "",
            "AWS_DEFAULT_REGION" = "us-east-2")
 
 s3saveRDS(x = ts.country.confirmed, bucket = s3BucketName, object = "ts.country.confirmed.rds")
