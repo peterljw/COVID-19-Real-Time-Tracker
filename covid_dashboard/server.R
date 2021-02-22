@@ -52,8 +52,8 @@ newColor = "black"
 countColor = "darkorange"
 
 s3BucketName <- "peter-covid-dashboard-data"
-Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAWECDTQ4VWNXVGNXV",
-           "AWS_SECRET_ACCESS_KEY" = "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",
+Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAWECDTQ4VU6FGPRHY",
+           "AWS_SECRET_ACCESS_KEY" = "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",
            "AWS_DEFAULT_REGION" = "us-east-2")
 
 ts.country.confirmed = s3readRDS(object = "ts.country.confirmed.rds", bucket = s3BucketName)
@@ -131,22 +131,22 @@ server <- function(input, output, session) {
       color = "red"
     )
   })
-  output$us_recovered <- renderValueBox({
-    valueBox(
-      comma(unlist(tail(ts.us.all,1)[3]), format = "d"), 
-      paste0("Recovered ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[3]), format = "d"),")"),
-      icon = icon("user-check"),
-      color = "green"
-    )
-  })
-  output$us_active <- renderValueBox({
-    valueBox(
-      comma(unlist(tail(ts.us.all,1)[4]), format = "d"), 
-      paste0("Active ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[4]), format = "d"),")"),
-      icon = icon("user-minus"),
-      color = "orange"
-    )
-  })
+  # output$us_recovered <- renderValueBox({
+  #   valueBox(
+  #     comma(unlist(tail(ts.us.all,1)[3]), format = "d"), 
+  #     paste0("Recovered ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[3]), format = "d"),")"),
+  #     icon = icon("user-check"),
+  #     color = "green"
+  #   )
+  # })
+  # output$us_active <- renderValueBox({
+  #   valueBox(
+  #     comma(unlist(tail(ts.us.all,1)[4]), format = "d"), 
+  #     paste0("Active ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[4]), format = "d"),")"),
+  #     icon = icon("user-minus"),
+  #     color = "orange"
+  #   )
+  # })
   
   
   ##### 2. us_map #####

@@ -21,13 +21,13 @@ ui <- dashboardPage(
     sidebarMenu(
       # overview
       menuItem("Overview", tabName = "overview", icon = icon("search"),
-               menuSubItem("U.S.", tabName = "overview-us"),
-               menuSubItem("World", tabName = "overview-world")
+               menuSubItem("World", tabName = "overview-world"),
+               menuSubItem("U.S.", tabName = "overview-us")
                ),
       # trend
       menuItem("Trend", tabName = "trend", icon = icon("chart-line"),
-               menuSubItem("U.S.", tabName = "trend-us"),
-               menuSubItem("World", tabName = "trend-world")
+               menuSubItem("World", tabName = "trend-world"),
+               menuSubItem("U.S.", tabName = "trend-us")
                ),
       # symptoms
       menuItem("Common Symptoms", tabName = "symptoms", icon = icon("notes-medical")),
@@ -45,8 +45,8 @@ ui <- dashboardPage(
       tabItem(tabName = "overview-us",
               fluidRow(
                 valueBoxOutput("us_confirmed", width = 3),
-                valueBoxOutput("us_active", width = 3),
-                valueBoxOutput("us_recovered", width = 3),
+                # valueBoxOutput("us_active", width = 3),
+                # valueBoxOutput("us_recovered", width = 3),
                 valueBoxOutput("us_death", width = 3)
               ),
               fluidRow(
