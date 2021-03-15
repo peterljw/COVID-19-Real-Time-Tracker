@@ -52,8 +52,8 @@ newColor = "black"
 countColor = "darkorange"
 
 s3BucketName <- "peter-covid-dashboard-data"
-Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAWECDTQ4V2BWKMMVP",
-           "AWS_SECRET_ACCESS_KEY" = "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",
+Sys.setenv("AWS_ACCESS_KEY_ID" = "",
+           "AWS_SECRET_ACCESS_KEY" = "",
            "AWS_DEFAULT_REGION" = "us-east-2")
 
 ts.country.confirmed = s3readRDS(object = "ts.country.confirmed.rds", bucket = s3BucketName)
