@@ -1,16 +1,3 @@
----
-title: "Data Ingest"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-
-```{r}
 library(tidyverse)
 library(covid19.analytics)
 library(maps)
@@ -400,4 +387,3 @@ s3saveRDS(agg.us.table, bucket = s3BucketName, object ="agg.us.table.rds")
 
 s3saveRDS(ts.country.all, bucket = s3BucketName, object ="ts.country.all.rds")
 s3saveRDS(ts.us.all, bucket = s3BucketName, object ="ts.us.all.rds")
-```
