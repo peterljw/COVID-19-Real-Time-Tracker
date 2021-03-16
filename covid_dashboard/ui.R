@@ -44,10 +44,10 @@ ui <- dashboardPage(
     tabItems(
       tabItem(tabName = "overview-us",
               fluidRow(
-                valueBoxOutput("us_confirmed", width = 6),
-                # valueBoxOutput("us_active", width = 3),
-                # valueBoxOutput("us_recovered", width = 3),
-                valueBoxOutput("us_death", width = 6)
+                valueBoxOutput("us_confirmed", width = 3),
+                valueBoxOutput("us_active", width = 3),
+                valueBoxOutput("us_recovered", width = 3),
+                valueBoxOutput("us_death", width = 3)
               ),
               fluidRow(
                 column(3,

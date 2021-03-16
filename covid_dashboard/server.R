@@ -131,22 +131,22 @@ server <- function(input, output, session) {
       color = "red"
     )
   })
-  # output$us_recovered <- renderValueBox({
-  #   valueBox(
-  #     comma(unlist(tail(ts.us.all,1)[3]), format = "d"), 
-  #     paste0("Recovered ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[3]), format = "d"),")"),
-  #     icon = icon("user-check"),
-  #     color = "green"
-  #   )
-  # })
-  # output$us_active <- renderValueBox({
-  #   valueBox(
-  #     comma(unlist(tail(ts.us.all,1)[4]), format = "d"), 
-  #     paste0("Active ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[4]), format = "d"),")"),
-  #     icon = icon("user-minus"),
-  #     color = "orange"
-  #   )
-  # })
+  output$us_recovered <- renderValueBox({
+    valueBox(
+      "N/A",
+      paste0("Recovered ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[3]), format = "d"),")"),
+      icon = icon("user-check"),
+      color = "green"
+    )
+  })
+  output$us_active <- renderValueBox({
+    valueBox(
+      "N/A",
+      paste0("Active ", "(+", comma(unlist((tail(ts.us.all,1) - tail(ts.us.all,2)[1,])[4]), format = "d"),")"),
+      icon = icon("user-minus"),
+      color = "orange"
+    )
+  })
   
   
   ##### 2. us_map #####
