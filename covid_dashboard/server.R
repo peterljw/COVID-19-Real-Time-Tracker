@@ -17,6 +17,8 @@ library(formattable)
 library(aws.s3)
 Sys.setenv(TZ = "America/Los_Angeles")
 
+# source("../data_ingestion/data_ingest.R")
+
 ######## Helper Functions ########
 options(scipen=10000)
 
@@ -52,8 +54,8 @@ newColor = "black"
 countColor = "darkorange"
 
 s3BucketName <- "peter-covid-dashboard-data"
-Sys.setenv("AWS_ACCESS_KEY_ID" = "",
-           "AWS_SECRET_ACCESS_KEY" = "",
+Sys.setenv("AWS_ACCESS_KEY_ID" = "AKIAWECDTQ4VQ46LYEMG",
+           "AWS_SECRET_ACCESS_KEY" = "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",
            "AWS_DEFAULT_REGION" = "us-east-2")
 
 ts.country.confirmed = s3readRDS(object = "ts.country.confirmed.rds", bucket = s3BucketName)
@@ -360,18 +362,16 @@ server <- function(input, output, session) {
   })
   output$world_recovered <- renderValueBox({
     valueBox(
-      comma(unlist(tail(ts.country.all,1)[3]), format = "d"), 
-      paste0("Recovered ", "(+", 
-             comma(unlist((tail(ts.country.all,1) - tail(ts.country.all,2)[1,])[3]), format = "d"),")"),
+      "N/A", 
+      "Recovered",
       icon = icon("user-check"),
       color = "green"
     )
   })
   output$world_active <- renderValueBox({
     valueBox(
-      comma(unlist(tail(ts.country.all,1)[4]), format = "d"), 
-      paste0("Active ", "(+", 
-             comma(unlist((tail(ts.country.all,1) - tail(ts.country.all,2)[1,])[4]), format = "d"),")"),
+      "N/A", 
+      "Active ",
       icon = icon("user-minus"),
       color = "orange"
     )

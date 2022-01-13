@@ -1,0 +1,606 @@
+---
+title: "COVID-19 Case Report"
+output: html_document
+---
+
+## 0. Set up and Helper Functions
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(xlsx)
+library(caret)
+library(car)
+library(InformationValue)
+library(caTools)
+library(ggpubr)
+library(stringr)
+library(tidytext)
+library(plotly)
+library(tidyverse)
+
+# helper functions
+data_report_cont <- function(dataset) {
+  feature <- colnames(dataset)
+  count <- dim(dataset)[1]
+  missing <- sapply(dataset, function(x) sum(is.na(x))/count)
+  card <- sapply(dataset, function(x) length(unique(x[!is.na(x)])))
+  summary_df <- t(sapply(dataset, function(x) summary(x[!is.na(x)])))
+  std <- sapply(dataset, function(x) sd(x[!is.na(x)]))
+  df <- tibble("Feature" = feature, "Count" = count, 
+                   "Missing %" = missing, 
+                   "Card." = card, "Min" = summary_df[,1], 
+                   "1st Qrt." = summary_df[,2],
+                   "Median" = summary_df[,3],
+                   "Mean" = summary_df[,4],
+                   "3rd Qrt." = summary_df[,5],
+                   "Max" = summary_df[,6],
+                   "Std. Dev." = std)
+  return(df)
+}
+
+data_report_disc <- function(dataset) {
+  feature <- colnames(dataset)
+  count <- dim(dataset)[1]
+  missing <- sapply(dataset, function(x) sum(is.na(x))/count)
+  card <- sapply(dataset, function(x) length(unique(x[!is.na(x)])))
+  mode <- sapply(dataset, function(x) names(sort(table(x), 
+                                                 decreasing = T))[1])
+  mode_freq <- sapply(dataset, function(x) sort(table(x), 
+                                                decreasing = T)[1])
+  mode_percent <- mode_freq/count
+  second_mode <- sapply(dataset, function(x) names(sort(table(x), 
+                                                        decreasing = T))[2])
+  second_mode_freq <- sapply(dataset, function(x) sort(table(x), 
+                                                       decreasing = T)[2])
+  second_mode_percent <- second_mode_freq/count
+  df <- tibble("Feature" = feature, "Count" = count, 
+                   "Missing" = missing, "Card." = card,
+                   "Mode" = mode, "Mode Freq." = mode_freq, 
+                   "Mode %" = mode_percent,
+                   "2nd Mode" = second_mode, "2nd Mode Freq." = second_mode_freq, 
+                   "2nd Mode %" = second_mode_percent)
+  return(df)
+}
+
+
+general_data_report <- function(dataset) {
+  feature <- colnames(dataset)
+  count <- dim(dataset)[1]
+  missing <- sapply(dataset, function(x) sum(is.na(x))/count)
+  card <- sapply(dataset, function(x) length(unique(x[!is.na(x)])))
+  df <- tibble("Feature" = feature, "Count" = count, 
+                   "Missing" = missing, "Cardinality" = card)
+  return(df)
+}
+
+
+clean_txt <- function(txt){
+    # lower case
+    temp <- tolower(txt)
+    # Remove everything that is not a number or letter 
+    temp <- stringr::str_replace_all(temp,"[^a-zA-Z\\s]", " ")
+    # Shrink down to just one white space
+    temp <- stringr::str_replace_all(temp,"[\\s]+", " ")
+    return(temp)
+}
+
+
+plot_multi_histogram <- function(df, feature, label_column) {
+  plt <- ggplot(df, aes(x=eval(parse(text=feature)), fill=eval(parse(text=label_column)))) +
+    geom_histogram(alpha=0.7, position="identity", aes(y = ..density.., text = ..density..), color = "gray30", bins=12) +
+    geom_density(alpha=0.7) +
+    labs(x=feature, y = "Density")
+  plt + 
+    guides(fill=guide_legend(title=label_column)) +
+    theme(legend.position = "none")
+}
+```
+
+## 1. Data Preprocessing
+
+### 1.1 Load Data
+
+```{r}
+# load raw data
+df.patients.raw <- read_csv("covid_individual_data.csv")
+glimpse(df.patients.raw)
+```
+
+```{r}
+# select variables of interest
+df.patients = df.patients.raw %>%
+  select(age, sex, symptoms, chronic_disease_binary, outcome)
+glimpse(df.patients)
+```
+
+### 1.2 Data Quality Report
+
+```{r}
+general_data_report(df.patients)
+```
+
+```{r}
+# inspect each variable
+# sort(unique(df.patients$age))
+# sort(unique(df.patients$sex))
+# sort(unique(df.patients$symptoms))
+# sort(unique(df.patients$chronic_disease_binary))
+# sort(unique(df.patients$outcome))
+```
+
+### 1.3 Age
+
+```{r}
+# take the mean of age intervals
+age_intervel_adjust = function(txt) {
+  if(grepl("-", txt)) {
+    age1 = as.numeric(strsplit(txt, "-")[[1]][1])
+    age2 = as.numeric(strsplit(txt, "-")[[1]][2])
+    return(as.character(mean(c(age1, age2))))
+  }
+  else {return(txt)}
+}
+
+# adjust ages measured in weeks/months to years
+age_unit_adjust = function(txt) {
+  if(grepl("month", txt)) {
+    digit = as.numeric(strsplit(txt, " month")[[1]][1])
+    output = round(digit/12)
+    return(as.character(output))
+  }else if(grepl("week", txt)) {
+    digit = as.numeric(strsplit(txt, " week")[[1]][1])
+    output = round(digit/52.1429)
+    return(as.character(output))
+  }else {return(txt)}
+}
+
+```
+
+```{r}
+# correct age intervals
+df.patients$age = sapply(df.patients$age, age_intervel_adjust)
+df.patients$age = sapply(df.patients$age, age_unit_adjust)
+
+# correct ages measured in weeks/months to years
+df.patients$age = round(as.numeric(df.patients$age))
+
+# correct unreasonable age numbers (e.g. > 150) NA
+df.patients$age[df.patients$age > 110 & !is.na(df.patients$age)] = NA
+```
+
+```{r}
+sort(unique(df.patients$age))
+```
+
+### 1.4 Sex
+
+```{r}
+df.patients$sex = factor(df.patients$sex, levels = c("male", "female"), labels = c("Male", "Female"))
+
+table(df.patients$sex, exclude = NULL)
+```
+
+### 1.5 Symptoms
+
+```{r}
+# remove incorrect data which contain "/"
+df.patients$symptoms[sapply(df.patients$symptoms, function(x) grepl("/", x)) & !is.na(df.patients$symptoms)] = NA
+
+# make all characters lowercases
+df.patients$symptoms[!is.na(df.patients$symptoms)] = sapply(df.patients$symptoms[!is.na(df.patients$symptoms)], tolower)
+```
+
+```{r}
+df.symptoms = df.patients %>%
+  select(text = symptoms) %>%
+  filter(!is.na(text))
+
+df.symptoms$text = sapply(df.symptoms$text, clean_txt)
+```
+
+```{r}
+# unigram
+tidy.symptoms.uni = df.symptoms %>%
+  unnest_tokens(word, text)
+
+unigram_freq = tidy.symptoms.uni %>%
+  count(word, sort = TRUE) %>%
+  # filter(n > 2) %>%
+  mutate(word = reorder(word, n))
+
+# bigram
+tidy.symptoms.bi = df.symptoms %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2)
+
+bigram_freq = tidy.symptoms.bi %>%
+  count(word, sort = TRUE) %>%
+  # filter(n > 2) %>%
+  mutate(word = reorder(word, n))
+
+
+# trigram
+tidy.symptoms.tri = df.symptoms %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3)
+
+trigram_freq = tidy.symptoms.tri %>%
+  count(word, sort = TRUE) %>%
+  # filter(n > 2) %>%
+  mutate(word = reorder(word, n))
+
+# trigram
+tidy.symptoms.tri = df.symptoms %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3)
+
+trigram_freq = tidy.symptoms.tri %>%
+  count(word, sort = TRUE) %>%
+  # filter(n > 2) %>%
+  mutate(word = reorder(word, n))
+
+# quadgram
+tidy.symptoms.quad = df.symptoms %>%
+  unnest_tokens(word, text, token = "ngrams", n = 4)
+
+quad_freq = tidy.symptoms.quad %>%
+  count(word, sort = TRUE) %>%
+  # filter(n > 2) %>%
+  mutate(word = reorder(word, n))
+```
+
+
+```{r}
+# save the ngram frequency outputs to a excel file
+# write.xlsx(data.frame(unigram_freq), file="symptoms_ngram.xlsx", sheetName="unigram", row.names=FALSE)
+# write.xlsx(data.frame(bigram_freq), file="symptoms_ngram.xlsx", sheetName="bigram", append=TRUE, row.names=FALSE)
+# write.xlsx(data.frame(trigram_freq), file="symptoms_ngram.xlsx", sheetName="trigram", append=TRUE, row.names=FALSE)
+# write.xlsx(data.frame(quad_freq), file="symptoms_ngram.xlsx", sheetName="quadgram", append=TRUE, row.names=FALSE)
+
+```
+
+```{r}
+# create a dictionary and a new variable/column for each identified symptom
+respiratory_distress_syndrome = c("respiratory distress")
+respiratory_failure = c("respiratory failure")
+chest_distress = c("chest distress", "chest tightness")
+shortness_of_breath = c("shortness of breath", "anhelation", "dyspnea", "dyspnea")
+heart_failure = c("heart failure")
+joint_pain = c("joint pain")
+runny_nose = c("runny nose")
+septic_shock = c("septic shock")
+sore_throat = c("sore throat")
+aching = c("aching", "aches") 
+anorexia = c("anorexia")
+arrhythmia = c("arrhythmia")
+backache = c("backache")
+rhinitis = c("coriza", "rhinorrhea")
+cough = c("cough", "coughing", "couh", "dcough")
+diarrhea = c("diarrhea", "diarrheoa", "diarrhoea")
+dizziness = c("dizziness")
+fatigue = c("fatigue")
+fever = c("fever")
+flu = c("flu")
+headache = c("headache")
+infarction = c("infarction")
+malaise = c("malaise")
+myalgia = c("myalgia", "mialgia", "milagia")
+nausea = c("nausea")
+phlegm = c("sputum", "phlegm")
+pneumonia = c("pneumonia", "pneumonitis")
+sepsis = c("sepsis")
+sneezing = c("sneezing")
+soreness = c("soreness")
+vomiting = c("vomiting")
+
+# if the original symptom description contains any of the elements in the dictionary, then the corresponding symptom variable will be 1, otherwise, it will be 0.
+generate_symptom = function(txt, dict) {
+  for(item in dict) {
+    if(grepl(item, txt)) {
+      return(1)
+    }
+  }
+  return(0)
+}
+
+symptoms = df.patients$symptoms
+df.patients$respiratory_distress_syndrome = as.factor(sapply(symptoms, function(x) generate_symptom(x, respiratory_distress_syndrome)))
+df.patients$respiratory_failure = as.factor(sapply(symptoms, function(x) generate_symptom(x, respiratory_failure)))
+df.patients$chest_distress = as.factor(sapply(symptoms, function(x) generate_symptom(x, chest_distress)))
+df.patients$shortness_of_breath = as.factor(sapply(symptoms, function(x) generate_symptom(x, shortness_of_breath)))
+df.patients$heart_failure = as.factor(sapply(symptoms, function(x) generate_symptom(x, heart_failure)))
+df.patients$joint_pain = as.factor(sapply(symptoms, function(x) generate_symptom(x, joint_pain)))
+df.patients$runny_nose = as.factor(sapply(symptoms, function(x) generate_symptom(x, runny_nose)))
+df.patients$septic_shock = as.factor(sapply(symptoms, function(x) generate_symptom(x, septic_shock)))
+df.patients$sore_throat = as.factor(sapply(symptoms, function(x) generate_symptom(x, sore_throat)))
+df.patients$aching = as.factor(sapply(symptoms, function(x) generate_symptom(x, aching)))
+df.patients$anorexia = as.factor(sapply(symptoms, function(x) generate_symptom(x, anorexia)))
+df.patients$arrhythmia = as.factor(sapply(symptoms, function(x) generate_symptom(x, arrhythmia)))
+df.patients$backache = as.factor(sapply(symptoms, function(x) generate_symptom(x, backache)))
+df.patients$rhinitis = as.factor(sapply(symptoms, function(x) generate_symptom(x, rhinitis)))
+df.patients$cough = as.factor(sapply(symptoms, function(x) generate_symptom(x, cough)))
+df.patients$diarrhea = as.factor(sapply(symptoms, function(x) generate_symptom(x, diarrhea)))
+df.patients$dizziness = as.factor(sapply(symptoms, function(x) generate_symptom(x, dizziness)))
+df.patients$fatigue = as.factor(sapply(symptoms, function(x) generate_symptom(x, fatigue)))
+df.patients$fever = as.factor(sapply(symptoms, function(x) generate_symptom(x, fever)))
+df.patients$flu = as.factor(sapply(symptoms, function(x) generate_symptom(x, flu)))
+df.patients$headache = as.factor(sapply(symptoms, function(x) generate_symptom(x, headache)))
+df.patients$infarction = as.factor(sapply(symptoms, function(x) generate_symptom(x, infarction)))
+df.patients$malaise = as.factor(sapply(symptoms, function(x) generate_symptom(x, malaise)))
+df.patients$myalgia = as.factor(sapply(symptoms, function(x) generate_symptom(x, myalgia)))
+df.patients$nausea = as.factor(sapply(symptoms, function(x) generate_symptom(x, nausea)))
+df.patients$phlegm = as.factor(sapply(symptoms, function(x) generate_symptom(x, phlegm)))
+df.patients$pneumonia = as.factor(sapply(symptoms, function(x) generate_symptom(x, pneumonia)))
+df.patients$sepsis = as.factor(sapply(symptoms, function(x) generate_symptom(x, sepsis)))
+df.patients$sneezing = as.factor(sapply(symptoms, function(x) generate_symptom(x, sneezing)))
+df.patients$soreness = as.factor(sapply(symptoms, function(x) generate_symptom(x, soreness)))
+df.patients$vomiting = as.factor(sapply(symptoms, function(x) generate_symptom(x, vomiting)))
+```
+
+### 1.6 Chronic Disease Binary
+
+```{r}
+df.patients$chronic_disease_binary = as.factor(df.patients$chronic_disease_binary)
+table(df.patients$chronic_disease_binary, exclude = NULL)
+```
+
+### 1.7 Outcome
+
+```{r}
+# correct all so that the outcome is either 'death' and 'Active/Recovered'
+death_dict = c("dead", "Dead", "death", "Death", "Deceased", "died", "Died")
+na_dict = c("mohfw.gov.in")
+url_prefix = "httlp"
+
+adjust_outcome = function(txt) {
+  if(txt %in% death_dict) {return("Death")}
+  else if(txt %in% na_dict | url_prefix %in% txt | is.na(txt)) {return(NA)}
+  else {return("Active/Recovered")}
+}
+
+df.patients$outcome = sapply(df.patients$outcome, adjust_outcome)
+df.patients$outcome = as.factor(df.patients$outcome)
+
+table(df.patients$outcome, exclude = NULL)
+```
+
+### 1.5 Data Summary Report
+
+```{r}
+data_report_disc(df.patients[,c(2,4,5)])
+data_report_cont(df.patients[,1])
+```
+ 
+## 2. Common Symptoms
+
+### 2.1 Overall
+
+```{r}
+df.patients_with_symptoms = df.patients %>% filter(!is.na(symptoms))
+df.symptoms = tibble("symptom" = c("Respiratory Distress Syndrome", "Respiratory Failure", "Chest Distress", "*Shortness of Breath",
+                                   "Heart Failure", "Joint Pain", "Runny Nose", "Septic Shock", "Sore Throat", "Aching", "Anorexia",
+                                   "Arrhythmia", "Backache", "Rhinitis", "Cough", "Diarrhea", "Dizziness", "Fatigue", "Fever",
+                                   "Flu", "Headache", "Infarction", "Malaise", "Myalgia", "Nausea", "Phlegm", "*Pneumonia", "Sepsis",
+                                   "Sneezing", "Soreness", "Vomiting"))
+value = c()
+for(i in 6:ncol(df.patients_with_symptoms)) {
+  value = c(value, table(df.patients_with_symptoms[,i])[2])
+}
+
+df.symptoms$value = value
+df.symptoms = df.symptoms %>% mutate(symptom = reorder(symptom, value))
+df.symptoms
+# saveRDS(df.symptoms, "df_symptoms.rds")
+```
+
+```{r}
+normalize <- function(x)
+{
+  x = x^0.6
+  return((x- min(x)) /(max(x)-min(x)))
+}
+
+ggplotly(ggplot(df.symptoms, aes(symptom, normalize(value)*10, fill = normalize(value)*10, text = paste0(symptom,"\n","Prevalence Level:", round(normalize(value)*10, 2)))) +
+  geom_bar(stat = "identity", alpha = 0.85) +
+  ylim(0, 10) +
+  ylab("Prevalence Level") +
+  xlab("Symptom") +
+  theme(legend.position = "none") +
+  scale_fill_gradient(low="antiquewhite", high="darkorange") + 
+  coord_flip(), tooltip = c("text")) %>% layout(height = 1000, width = 800)
+```
+
+## 3. Demographic Distributions
+
+```{r}
+saveRDS(df.patients, "df_patients.rds")
+```
+
+### 3.1 Age - Overall
+
+```{r}
+ggplotly(ggplot(data = df.patients[!is.na(df.patients$age),], aes(x = "age", y = age)) +
+  geom_boxplot(fill = "darkorange") +
+  xlab(NULL) +
+  ylab("Age") +
+  coord_flip())
+
+ggplotly(ggplot(data = df.patients %>% filter(!is.na(age)), aes(age)) + 
+  geom_histogram(alpha=0.7, position="identity", aes(y = ..density..), bins = 18, fill = "darkorange", color = "gray30") +
+  geom_density(alpha=0.7, color = "gray30") +
+  xlab("Age") +
+  ylab("Proportion")
+  )
+```
+
+### 3.2 Age - Stratified by Outcome
+
+```{r}
+ggplotly(ggplot(data = df.patients %>% filter(!is.na(outcome)), aes(y = age, x = outcome, fill = outcome)) +
+  geom_boxplot() + xlab("Outcome") + ylab("Age") + theme(legend.position = "none"))
+
+ggplotly(plot_multi_histogram(df.patients %>% filter(!is.na(outcome)), feature = "age", label_column = "outcome"), tooltip = c("text"))
+```
+
+### 3.3 Sex - Overall
+
+```{r}
+ggplotly(ggplot(data = df.patients %>% filter(!is.na(sex)), aes(x = sex, fill = sex, text = round(..count../sum(..count..), 2))) +
+           geom_bar(aes(y = ..count../sum(..count..))) +
+           xlab("Gender") +
+           ylab("Proportion") +
+           theme(legend.position = "none") +
+           coord_flip()
+    , tooltip = c("text"))
+```
+
+### 3.4 Sex - Stratified by Outcome
+
+```{r}
+ggplotly(ggplot(data = df.patients %>% filter(!is.na(outcome) & !is.na(sex)), aes(x = outcome)) +
+           geom_bar(aes(fill=sex), position="fill") +
+           xlab("Gender") +
+           ylab("Proportion") +
+           theme(legend.position = "none")
+         )
+```
+
+## 4. Association Analysis & Risk Factor Identification
+
+Only retain observations with recorded outcomes.
+
+```{r}
+df.patients_with_outcome = df.patients %>% 
+  filter(!is.na(outcome)) %>%
+  select(-c(symptoms))
+
+nrow(df.patients_with_outcome)
+```
+
+Only retain observations with non-null values for all variables.
+
+```{r}
+nrow(df.patients %>% drop_na())
+```
+
+### 4.1 2 Sample t-test for Age
+
+```{r}
+ggqqplot(df.patients_with_outcome$age[df.patients_with_outcome$outcome == "Active/Recovered"]) # seems alright
+ggqqplot(df.patients_with_outcome$age[df.patients_with_outcome$outcome == "Death"]) # seems alright
+
+var.test(age ~ outcome, data = df.patients_with_outcome) # unequal variance
+
+t.test(age ~ outcome, data = df.patients_with_outcome, var.equal = FALSE)
+```
+
+### 4.2 Chi-Square (2x2) Tests ([Symptom, Sex] x Outcome)
+
+#### 4.2.1 Sex
+
+```{r}
+sex.matrix = matrix(c(table(df.patients_with_outcome[df.patients_with_outcome$outcome == "Active/Recovered",]$sex),table(df.patients_with_outcome[df.patients_with_outcome$outcome == "Death",]$sex)),ncol=2)
+sex.matrix
+
+outcome = chisq.test(sex.matrix, correct = F)
+outcome
+```
+
+#### 4.2.2 Symptoms
+
+```{r}
+p_values = c()
+for(i in 5:ncol(df.patients_with_outcome)) {
+  r1 = table(df.patients_with_outcome[df.patients_with_outcome$outcome == "Active/Recovered", i])
+  r2 = table(df.patients_with_outcome[df.patients_with_outcome$outcome == "Death", i])
+  m = matrix(c(r1, r2), ncol = 2)
+  p_values = c(p_values, fisher.test(m)$p.value)
+  print(colnames(df.patients_with_outcome)[i])
+  print(m)
+  print(fisher.test(m)$p.value)
+}
+
+df.symptoms.pvalues = tibble("symptom" = colnames(df.patients_with_outcome)[5:ncol(df.patients_with_outcome)],
+                             "p.value" = p_values)
+
+p_value_threshold = 0.01/nrow(df.symptoms.pvalues)
+df.symptoms.pvalues %>% filter(p.value <= p_value_threshold)
+```
+
+### 4.3 Classifiation Models
+
+#### 4.3.0 Traing/Test Split
+
+```{r}
+set.seed(8)
+df = df.patients_with_outcome %>% drop_na()
+rm_subset = c()
+for(i in 5:35) {
+  if(table(unlist(df[,i]))[2] == 0) {
+    rm_subset = c(rm_subset, i)
+  }
+}
+df = df[,-rm_subset]
+df$outcome = factor(df$outcome, levels = c("Active/Recovered", "Death"), labels = c(0,1))
+
+split = sample.split(df$outcome, SplitRatio = 0.7)
+training_set = subset(df, split == TRUE)
+test_set = subset(df, split == FALSE)
+```
+
+#### 4.3.1 Genreal Logistic Regression
+
+```{r}
+classifier = glm(formula = outcome ~ .,
+                 family = binomial,
+                 data = training_set)
+
+prob_pred = predict(classifier, type = 'response', newdata = test_set[-4])
+
+# model diagnostics
+sum(vif(classifier) > 4)
+optCutOff <- optimalCutoff(test_set$outcome, prob_pred)[1] 
+misClassError(test_set$outcome, prob_pred, threshold = optCutOff)
+sensitivity(test_set$outcome, prob_pred, threshold = optCutOff)
+specificity(test_set$outcome, prob_pred, threshold = optCutOff)
+confusionMatrix(test_set$outcome, prob_pred, threshold = optCutOff)
+plotROC(test_set$outcome, prob_pred)
+```
+
+```{r}
+set.seed(12)
+default_glm_mod = train(
+  form = outcome ~ .,
+  data = df,
+  trControl = trainControl(method = "cv", number = 5),
+  method = "glm",
+  family = "binomial"
+)
+
+default_glm_mod$results
+summary(default_glm_mod)
+default_glm_mod$coefnames
+```
+
+#### 4.3.2 Regularized Logistic Regression
+
+```{r}
+lasso = train(form = outcome ~ .,
+             data = df,
+             trControl = trainControl(method = "cv", number = 5),
+             method = "glmnet",
+             tuneGrid = expand.grid(alpha = 1, lambda = seq(0.00001, 2, length = 20))
+             ) 
+lasso$results
+```
+
+```{r}
+ridge = train(form = outcome ~ .,
+             data = df,
+             trControl = trainControl(method = "cv", number = 5),
+             method = "glmnet",
+             tuneGrid = expand.grid(alpha = 0, lambda = seq(0.00001, 2, length = 20))
+             ) 
+ridge$results
+```
+
+
+
