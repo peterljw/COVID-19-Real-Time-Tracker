@@ -5,8 +5,9 @@ account: peterljw
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2189465
-bundleId: 4917617
+bundleId: 5479177
 url: https://peterljw.shinyapps.io/covid_dashboard/
-when: 1628811694.60525
+when: 1642469937.18409
+lastSyncTime: 1642469937.18409
 asMultiple: FALSE
 asStatic: FALSE
