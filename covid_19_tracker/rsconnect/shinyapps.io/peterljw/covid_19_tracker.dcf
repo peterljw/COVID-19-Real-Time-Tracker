@@ -1,0 +1,13 @@
+name: covid_19_tracker
+title: covid_19_tracker
+username:
+account: peterljw
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5458438
+bundleId: 5479150
+url: https://peterljw.shinyapps.io/covid_19_tracker/
+when: 1642468800.99694
+lastSyncTime: 1642468800.99694
+asMultiple: FALSE
+asStatic: FALSE

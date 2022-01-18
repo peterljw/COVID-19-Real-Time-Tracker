@@ -18,7 +18,7 @@ normalize <- function(x){
   return((x- min(x)) /(max(x)-min(x)))
 }
 
-setwd("~/Desktop/Data Science/Projects/COVID-19-Analysis/covid_dashboard")
+setwd("C:/Users/peter/Desktop/GitHub/COVID-19-Real-Time-Tracker/data_ingestion")
 ######## 1.Data Preprocessing ########
 
 country_population <- readRDS("country_population.rds")

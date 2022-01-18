@@ -6,6 +6,7 @@ library(plotly)
 library(DT)
 library(shinyWidgets)
 library(tidyverse)
+library(markdown)
 
 
 ui <- dashboardPage(
